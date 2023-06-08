@@ -15,6 +15,8 @@
 #include <pthread.h>
 #include <poll.h>
 
+#define WAITING_TIME 1000
+
 struct GardenerTask {
     int plot_i;
     int plot_j;
@@ -53,3 +55,4 @@ struct Event {
 int createClientSocket(char *server_ip, int server_port);
 void sendHandleRequest(int client_socket, struct GardenerTask task);
 struct sockaddr_in getServerAddress(char *server_ip, int server_port);
+int trySend(int client_socket, void *buffer, int size, int suspend_time);

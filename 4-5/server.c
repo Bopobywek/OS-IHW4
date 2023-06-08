@@ -162,6 +162,16 @@ void *gardenerHandler(void *args) {
             result.size = writeToBuffer(&status, result.buffer, sizeof(status));
             result.client_address = request.client_address;
             write(results_pipe_fd[1], &result, sizeof(result));
+        } else if (request.task.status == 1) {
+            struct Event finish_event;
+            setEventWithCurrentTime(&finish_event);
+            finish_event.type = ACTION;
+            sprintf(finish_event.buffer, "Gardener %d finish work\n", request.task.gardener_id);
+            writeEventToPipe(&finish_event);
+
+            result.size = writeToBuffer(&status, result.buffer, sizeof(status));
+            result.client_address = request.client_address;
+            write(results_pipe_fd[1], &result, sizeof(result));
         }
     }
 }
@@ -295,7 +305,11 @@ void *readTasks(void *args) {
         fd.fd = params.socket;
         fd.events = POLLIN;
 
-        poll(&fd, 1, -1);
+        int result = poll(&fd, 1, -1);
+        if (result < 0) {
+            perror("Can't poll socket");
+            exit(-1);
+        }
 
         struct GardenerTask task;
         struct sockaddr_in client_address;
@@ -336,12 +350,18 @@ void *resultSender(void *args) {
 
 pthread_t task_reader_thread;
 void runTaskReader(struct Args *args) {
-    pthread_create(&task_reader_thread, NULL, readTasks, (void *)args);
+    if (pthread_create(&task_reader_thread, NULL, readTasks, (void *)args) < 0) {
+        perror("Can't run task reader");
+        exit(-1);
+    }
 }
 
 pthread_t result_sender_thread;
 void runResultSender(int *server_socket) {
-    pthread_create(&result_sender_thread, NULL, resultSender, (void *)server_socket);
+    if (pthread_create(&result_sender_thread, NULL, resultSender, (void *)server_socket) < 0) {
+        perror("Can't run result sender");
+        exit(-1);
+    }
 }
 
 int server_socket;

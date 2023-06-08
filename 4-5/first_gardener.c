@@ -62,11 +62,16 @@ int main(int argc, char *argv[]) {
 
     client_socket = createClientSocket(server_ip, server_port);
 
+    struct pollfd fd;
+    fd.fd = client_socket;
+    fd.events = POLLIN;
+
     struct GardenerTask task;
     task.status = 2;
-    if (send(client_socket, &task, sizeof(task), 0) != sizeof(task)) {
-        perror("sendto() sent a different number of bytes than expected");
-        exit(-1);
+
+    if (trySend(client_socket, &task, sizeof(task), 0) < 0) {
+        printf("Server error\n");
+        exit(0);
     }
 
     struct FieldSize field_size;

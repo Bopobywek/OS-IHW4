@@ -38,20 +38,49 @@ struct sockaddr_in getServerAddress(char *server_ip, int server_port) {
 void sendHandleRequest(int client_socket, struct GardenerTask task) {
     int status;
     int received;
-    do {
-        // &task -- сериализация, передаем структуру по байтам
-        if (send(client_socket, &task, sizeof(task), 0) != sizeof(task)) {
-            perror("send() bad");
-            exit(-1);
-        }
 
-        if ((received = recv(client_socket, &status, sizeof(int), 0)) != sizeof(int)) {
-            perror("recv() bad");
-            exit(-1);
-        }
-    } while (status != 1);
+    if (trySend(client_socket, &task, sizeof(task), task.working_time) < 0) {
+        printf("Server error\n");
+        exit(0);
+    }
+
+    if ((received = recv(client_socket, &status, sizeof(int), 0)) != sizeof(int)) {
+        perror("recv() bad");
+        exit(-1);
+    }
 
     if (task.status != 1) {
         printf("Gardener %d handle plot (%d, %d)\n", task.gardener_id, task.plot_i, task.plot_j);
     }
+}
+
+int trySend(int client_socket, void *buffer, int size, int suspend_time) {
+    if (send(client_socket, buffer, size, 0) != size) {
+        perror("send() bad");
+        exit(-1);
+    }
+
+    struct pollfd fd;
+    fd.fd = client_socket;
+    fd.events = POLLIN;
+
+    int attempts = 0;
+    int wait_result = poll(&fd, 1, suspend_time + WAITING_TIME);
+
+    while (wait_result <= 0 && attempts < 5) {
+        ++attempts;
+        printf("Can't receive answer from server. Attempt %d/5\n", attempts);
+
+        if (send(client_socket, buffer, size, 0) != size) {
+            perror("send() bad");
+            exit(-1);
+        }
+
+        wait_result = poll(&fd, 1, suspend_time + WAITING_TIME);
+    }
+
+    if (attempts == 5) {
+        return -1;
+    }
+    return attempts;
 }
