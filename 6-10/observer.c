@@ -23,7 +23,7 @@ void sigint_handler(int signum) {
     exit(0);
 }
 
-double last_server_ping_ans;
+time_t last_server_ping_ans;
 
 void *eventReader(void *args) {
     char recvString[MAXRECVSTRING + 1];
@@ -116,6 +116,7 @@ int main(int argc, char *argv[]) {
     pthread_create(&sender, NULL, pingSender, NULL);
     pthread_create(&receiver, NULL, eventReader, NULL);
 
+    last_server_ping_ans = time(0);
     pthread_join(sender, NULL);
     pthread_join(receiver, NULL);
 

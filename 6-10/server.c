@@ -336,6 +336,11 @@ struct Args {
     sem_t *sem;
 };
 
+int is_addressess_equal(struct sockaddr_in a, struct sockaddr_in b) {
+    return a.sin_family == b.sin_family && a.sin_port == b.sin_port &&
+           a.sin_addr.s_addr == b.sin_addr.s_addr;
+}
+
 void *manageObservers(void *args) {
     struct Args params = *((struct Args *)args);
 
@@ -367,7 +372,7 @@ void *manageObservers(void *args) {
         if (type == CONNECT) {
             for (int i = 0; i < 100; ++i) {
                 if (observers[i].is_active == 0 ||
-                    difftime(time(0), observers[i].last_activity_at) > 5) {
+                    difftime(time(0), observers[i].last_activity_at) > 10) {
                     observers[i].client_address = client_address;
                     observers[i].is_active = 1;
                     observers[i].last_activity_at = time(0);
@@ -377,26 +382,32 @@ void *manageObservers(void *args) {
         }
 
         if (type == PING) {
+            int found = 0;
             for (int i = 0; i < 100; ++i) {
-                if (observers[i].client_address.sin_addr.s_addr == client_address.sin_addr.s_addr) {
+                if (is_addressess_equal(observers[i].client_address, client_address)) {
+                    observers[i].is_active = 1;
                     observers[i].last_activity_at = time(0);
-                    int status = 1;
-                    if (sendto(params.socket, &status, sizeof(status), 0,
-                               (struct sockaddr *)&observers[i].client_address,
-                               sizeof(observers[i].client_address)) != sizeof(status)) {
-                    }
+                    found = 1;
                     break;
+                }
+            }
+
+            if (!found) {
+                for (int i = 0; i < 100; ++i) {
+                    if (observers[i].is_active == 0 ||
+                        difftime(time(0), observers[i].last_activity_at) > 10) {
+                        observers[i].client_address = client_address;
+                        observers[i].is_active = 1;
+                        observers[i].last_activity_at = time(0);
+                        break;
+                    }
                 }
             }
         }
 
-        if (type == DISCONNECT) {
-            for (int i = 0; i < 100; ++i) {
-                if (observers[i].client_address.sin_addr.s_addr == client_address.sin_addr.s_addr) {
-                    observers[i].is_active = 0;
-                    break;
-                }
-            }
+        int status = 1;
+        if (sendto(params.socket, &status, sizeof(status), 0, (struct sockaddr *)&client_address,
+                   sizeof(client_address)) != sizeof(status)) {
         }
 
         sem_post(params.sem);
