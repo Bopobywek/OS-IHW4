@@ -4,5 +4,5 @@ then
     exit 1
 fi
 
-./first_gardener "127.0.0.1" 8085 $1 &
-./second_gardener "127.0.0.1" 8085 $2 &
+./first_gardener "127.0.0.1" 8080 $1 &
+./second_gardener "127.0.0.1" 8080 $2 &

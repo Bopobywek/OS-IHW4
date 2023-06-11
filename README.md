@@ -18,6 +18,8 @@
 - [Формат запуска](#формат-запуска)
   - [Программы на 4-5 баллов](#программы-на-4-5-баллов)
   - [Программы на 6-10 баллов](#программы-на-6-10-баллов)
+    - [Первый вариант (multicast)](#первый-вариант-multicast)
+    - [Второй вариант](#второй-вариант)
 - [Критерии на 4-10 баллов](#критерии-на-4-10-баллов)
   - [Демонстрация работы программы](#демонстрация-работы-программы)
   - [Клиенты-наблюдатели](#клиенты-наблюдатели)
@@ -82,9 +84,10 @@
 ./second_gardener <Server Address> <Server Port> <Working time>
 ```
 ### Программы на 6-10 баллов
+#### Первый вариант (multicast)
 Запуск сервера:
 ```console
-./server <Server Address> <Server Port> <Observer Port> <Square side size>
+./server <Server Address> <Server Port> <Multicast Address> <Multicast Port> <Square side size>
 ```
 Запуск садовников
 ```console
@@ -93,7 +96,21 @@
 ```
 Запуск наблюдателя
 ```console
-./observer <Server address> <Server port>
+./observer <Multicast IP> <Multicast Port>
+```
+#### Второй вариант
+Запуск сервера:
+```console
+./server <Server Address> <Server Port> <Observers Port> <Square side size>
+```
+Запуск садовников
+```console
+./first_gardener <Server Address> <Server Port> <Working time>
+./second_gardener <Server Address> <Server Port> <Working time>
+```
+Запуск наблюдателя
+```console
+./observer <Server IP> <Observer Port>
 ```
 
 ## Критерии на 4-10 баллов
@@ -101,7 +118,7 @@
 ### Демонстрация работы программы
 Сервер и клиенты запускались на домашнем компьютере. Система успешно отработала в данном сценарии. Ниже приведен результат работы:
 <p align="center">
-  <img src="./pictures/demo-1.png">
+  <img src="./pictures/demo-udp-1.png">
 </p>  
 
 Слева показан вывод клиентов-садовников, которые были одновременно запущены при помощи скрипта [run.sh](./6-10/run.sh), справа &mdash; вывод на сервере.
@@ -112,7 +129,7 @@
 
 Ниже приведено два скриншота с демонстрацией работы клиента-наблюдателя. Сначала запускается сервер, затем запускается наблюдатель, после чего начинают работу садовники. У наблюдателя отображается информация о моделировании как с сервера, так и с клиентов-садовников.
 <p align="center">
-  <img src="./pictures/demo-2.png">
+  <img src="./pictures/demo-udp-2.png">
 </p>
 <p align="center">
 <em>Запуск сервера и клиентов.</em>
@@ -120,14 +137,14 @@
   
 
 <p align="center">
-  <img src="./pictures/demo-3.png">
+  <img src="./pictures/demo-udp-3.png">
 </p>
 <p align="center">
 <em>Демонстрация работы наблюдателя.</em>
 </p>  
 
 <p align="center">
-  <img src="./pictures/demo-4.png">
+  <img src="./pictures/demo-udp-4.png">
 </p>
 <p align="center">
 <em>Демонстрация нескольких наблюдателей.</em>
@@ -136,7 +153,7 @@
 На рисунке ниже "Наблюдатель 2" отключается, а затем подключается снова. Работа сервера и других клиентов не нарушается.
 
 <p align="center">
-  <img src="./pictures/demo-5.png">
+  <img src="./pictures/demo-udp-5.png">
 </p>
 <p align="center">
 <em>Демонстрация переподключения одного из наблюдателей.</em>
@@ -144,7 +161,7 @@
 
 ## Реакция сервера на отключение/переподключение садовника
 <p align="center">
-  <img src="./pictures/demo-6.png">
+  <img src="./pictures/demo-udp-6.png">
 </p>
 <p align="center">
 <em>Демонстрация переподключения одного из садовников.</em>
@@ -152,7 +169,7 @@
 
 ## Реакция клиентов на завершение работы сервера
 <p align="center">
-  <img src="./pictures/demo-7.png">
+  <img src="./pictures/demo-udp-7.png">
 </p>
 <p align="center">
 <em>Демонстрация отключения сервера.</em>
