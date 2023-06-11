@@ -45,6 +45,29 @@ int createServerSocket(in_addr_t sin_addr, int port) {
     return server_socket;
 }
 
+int createMulticastSenderSocket(in_addr_t sin_addr, int port, int multicast_tll) {
+    int multicast_socket;
+    struct sockaddr_in multicast_address;
+
+    if ((multicast_socket = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
+        perror("Unable to create multicast socket");
+        exit(-1);
+    }
+
+    if (setsockopt(multicast_socket, IPPROTO_IP, IP_MULTICAST_TTL, (void *)&multicast_tll,
+                   sizeof(multicast_tll)) < 0) {
+        perror("Unable to create multicast socket");
+        exit(-1);
+    }
+
+    memset(&multicast_address, 0, sizeof(multicast_address));
+    multicast_address.sin_family = AF_INET;
+    multicast_address.sin_addr.s_addr = sin_addr;
+    multicast_address.sin_port = htons(port);
+
+    return multicast_socket;
+}
+
 void printField(int *field, int columns, int rows) {
     for (int i = 0; i < rows; ++i) {
         for (int j = 0; j < columns; ++j) {
@@ -266,7 +289,7 @@ sem_t *createSemaphoresSharedMemory(int sem_count) {
     return semaphores;
 }
 
-void writeInfoToConsole() {
+void writeInfoToConsole(int sock, struct sockaddr_in multicast_address) {
     while (1) {
         struct Event event;
         if (read(pipe_fd[0], &event, sizeof(event)) < 0) {
@@ -276,20 +299,34 @@ void writeInfoToConsole() {
         if (event.type == MAP) {
             printf("%s | %s\n", event.timestamp, event.buffer);
         }
+
+        char buffer[sizeof(event.timestamp) + sizeof(event.buffer) + 3];
+        int size = sprintf(buffer, "%s | %s\n", event.timestamp, event.buffer);
+
+        if (sendto(sock, buffer, size, 0, (struct sockaddr *)&multicast_address,
+                   sizeof(multicast_address)) != size) {
+        }
     }
 }
 
-pid_t runWriter() {
-    pid_t child_id;
-    if ((child_id = fork()) < 0) {
-        perror("Unable to create child for handling write to log");
-        exit(-1);
-    } else if (child_id == 0) {
-        writeInfoToConsole();
+int multicast_socket;
+pthread_t writer_thread;
+struct sockaddr_in multicast_address;
+int runWriter(in_addr_t sin_addr, int port, int multicast_tll) {
+    multicast_socket = createMulticastSenderSocket(sin_addr, port, multicast_tll);
+    pid_t chpid = fork();
+
+    memset(&multicast_address, 0, sizeof(multicast_address));
+    multicast_address.sin_family = AF_INET;
+    multicast_address.sin_addr.s_addr = sin_addr;
+    multicast_address.sin_port = htons(port);
+
+    if (chpid == 0) {
+        writeInfoToConsole(multicast_socket, multicast_address);
         exit(0);
     }
 
-    return child_id;
+    return 0;
 }
 
 struct Args {
@@ -369,16 +406,24 @@ int children_counter = 0;
 
 void sigint_handler(int signum) {
     printf("Server stopped\n");
+    char exit_signal[] = "_exit";
+    sendto(multicast_socket, exit_signal, sizeof(exit_signal), 0,
+           (struct sockaddr *)&multicast_address, sizeof(multicast_address));
+
     shm_unlink(shared_object);
     shm_unlink(sem_shared_object);
     close(server_socket);
+    close(multicast_socket);
     exit(0);
 }
 
 int main(int argc, char *argv[]) {
 
-    if (argc != 4) {
-        fprintf(stderr, "Usage:  %s <Server Address> <Server Port> <Square side size>\n", argv[0]);
+    if (argc != 6) {
+        fprintf(stderr,
+                "Usage:  %s <Server Address> <Server Port> <Multicast Address> <Multicast Port> "
+                "<Square side size>\n",
+                argv[0]);
         exit(1);
     }
 
@@ -388,9 +433,21 @@ int main(int argc, char *argv[]) {
         exit(-1);
     }
 
+    in_addr_t multicast_address;
+    if ((multicast_address = inet_addr(argv[3])) < 0) {
+        perror("Invalid multicast address");
+        exit(-1);
+    }
+
     int server_port = atoi(argv[2]);
     if (server_port < 0) {
         perror("Invalid server port");
+        exit(-1);
+    }
+
+    int multicast_port = atoi(argv[4]);
+    if (server_port < 0) {
+        perror("Invalid multicast port");
         exit(-1);
     }
 
@@ -414,11 +471,11 @@ int main(int argc, char *argv[]) {
         exit(-1);
     }
 
-    runWriter();
+    runWriter(multicast_address, multicast_port, 1);
 
     signal(SIGINT, sigint_handler);
 
-    int square_side_size = atoi(argv[3]);
+    int square_side_size = atoi(argv[5]);
     if (square_side_size > 10 || square_side_size < 2) {
         perror("Square side size should be in range [2, 10]");
         exit(-1);
