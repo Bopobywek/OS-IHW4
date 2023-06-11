@@ -323,6 +323,7 @@ int runWriter(int observer_socket, sem_t *sem) {
     pid_t chpid = fork();
 
     if (chpid == 0) {
+        signal(SIGINT, SIG_DFL);
         writeInfoToConsole(observer_socket, sem);
         exit(0);
     }
@@ -366,7 +367,7 @@ void *manageObservers(void *args) {
         if (type == CONNECT) {
             for (int i = 0; i < 100; ++i) {
                 if (observers[i].is_active == 0 ||
-                    (time(0) - observers[i].last_activity_at) * 1000. / CLOCKS_PER_SEC > 5.) {
+                    difftime(time(0), observers[i].last_activity_at) > 5) {
                     observers[i].client_address = client_address;
                     observers[i].is_active = 1;
                     observers[i].last_activity_at = time(0);
@@ -379,6 +380,11 @@ void *manageObservers(void *args) {
             for (int i = 0; i < 100; ++i) {
                 if (observers[i].client_address.sin_addr.s_addr == client_address.sin_addr.s_addr) {
                     observers[i].last_activity_at = time(0);
+                    int status = 1;
+                    if (sendto(params.socket, &status, sizeof(status), 0,
+                               (struct sockaddr *)&observers[i].client_address,
+                               sizeof(observers[i].client_address)) != sizeof(status)) {
+                    }
                     break;
                 }
             }
